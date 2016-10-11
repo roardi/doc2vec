@@ -58,6 +58,8 @@ class TaggedLineSentence(object):
 
 from gensim.summarization import keywords
 import MySQLdb
+import nltk
+import string
 ##import six
 ##import rake
 ##import operator
@@ -74,44 +76,38 @@ cursor = db.cursor()
 ##rake_object = rake.Rake(stoppath, 4, 1, 1)
 
 # pass variable from PHP
-try:
-    grouppost_id = json.loads(sys.argv[1])
-    
-except:
-    print "ERROR"
-    sys.exit(1)
-##grouppost_id = '12'
+##try:
+##    grouppost_id = json.loads(sys.argv[1])
+##    
+##except:
+##    print "ERROR"
+##    sys.exit(1)
+grouppost_id = '12'
 ##datas = [str(x) for x in data]
+from nltk.corpus import stopwords
+raw = open("C:\Python27\word2vec\stopwords.txt", "rU")
+stop = raw.read()
+
 cursor.execute("SELECT posts FROM groupposts WHERE grouppost_id=%s",grouppost_id)
 test = cursor.fetchone()
 strtest = str(test).lower()
+test_punc = "".join(l for l in strtest if l not in string.punctuation)
+test_tok = nltk.word_tokenize(test_punc)
+test_stop = [i for i in test_tok if i not in stop]
+new_test = " ".join(test_stop)
+
 with open("Test.txt", "w") as text_file:
-    text_file.writelines(strtest)
+    text_file.writelines(new_test)
  
 print 'Uji:'
-uji = keywords(strtest,ratio=0.1, split=True)
 print test
+##uji = keywords(new_test,split=True)
+##print 'Keyword uji'
+##print uji
 
 ### 2. run on RAKE on a given text
 ##uji2 = rake_object.run(datauji)
 ##print str(uji2).split()
-
-#loop for similarity
-cursor.execute("SELECT posts FROM groupposts WHERE grouppost_id='15'")
-numrow = int(cursor.rowcount)
-##for i in range (0,numrow):
-row = cursor.fetchone()
-strrow = str(row).lower()
-with open("Data.txt", "w") as text_file:
-    text_file.writelines(strrow)
-    
-print 'Data:'
-data = keywords(strrow,ratio=0.1, split=True)
-print row
-
-### 2. run on RAKE on a given text
-##data2 = rake_object.run(text)
-##print str(data2).split()
 
 # execute SQL select statement
 cursor.execute("SELECT posts FROM groupposts WHERE group_id='1' ")
@@ -122,19 +118,18 @@ db.commit()
 # get the number of rows in the resultset
 numrows = int(cursor.rowcount)
 
-##raw = open("stopwords.txt", "rU")
-##stop = raw.read()
 # create sources
 with open("Output.txt", "w") as text_file:
     for x in range(0,numrows):
-        aa = cursor.fetchone()
-##        print aa
-##        rowss = [i for i in aa if i not in stop]
-##        isi = str(aa).lower()
-##        print isi
+        data = cursor.fetchone()
+        strdata = str(data).lower()
+        data_punc = "".join(l for l in strdata if l not in string.punctuation)
+        data_tok = nltk.word_tokenize(data_punc)
+        data_stop = [i for i in data_tok if i not in stop]
+        new_data = " ".join(data_stop)
         with open("Output.txt", "a") as text_file:
-            text_file.writelines(aa)
-##            text_file.writelines("\n")
+            text_file.writelines(new_data)
+            text_file.writelines("\n")
 
 sources = {'Output.txt':'TRAIN_POS','Test.txt':'TEST'}
 
@@ -146,7 +141,7 @@ model = Doc2Vec(min_count=1, window=5, size=100, sample=1e-4, negative=5, worker
 model.build_vocab(sentences.to_array())
 
 ##log.info('Epoch')
-for epoch in range(5):
+for epoch in range(3):
 	log.info('EPOCH: {}'.format(epoch))
 	model.train(sentences.sentences_perm())
 
@@ -154,28 +149,46 @@ for epoch in range(5):
 model.save('./imdb.d2v')
 model = Doc2Vec.load('./imdb.d2v')
 
-##print model.vocab
-##print model.most_similar('tangga')
-print model.n_similarity(uji,data)
-##print model.accuracy(sentences)
-    ##distance = model.wmdistance(text,data2)
-    ##print 100-distance
+#loop for similarity
+cursor.execute("SELECT posts FROM groupposts WHERE group_id='1'")
+numrow = int(cursor.rowcount)
+max_sim = 0
+for i in range (0,numrow):
+    row = cursor.fetchone()
+    strrow = str(row).lower()
+    row_punc = "".join(l for l in strrow if l not in string.punctuation)
+    row_tok = nltk.word_tokenize(row_punc)
+    row_stop = [i for i in row_tok if i not in stop]
+    new_row = " ".join(row_stop)
 
-##train_arrays = numpy.zeros((200, 100))
-##train_labels = numpy.zeros(200)
-##for i in range(1):
-##    prefix_train_pos = 'DATA_'+ str(i)
-##    train_arrays[i] = model.docvecs[prefix_train_pos]
-##    train_labels[i] = 1
-##print train_arrays
-##
-##test_arrays = numpy.zeros((200, 100))
-##test_labels = numpy.zeros(200)
-##for i in range(1):
-##    prefix_test_pos = 'TEST_'+ str(i)
-##    test_arrays[i] = model.docvecs[prefix_test_pos]
-##    test_labels[i] = 0
-##print test_arrays
+    with open("Data.txt", "w") as text_file:
+        text_file.writelines(new_row)
+
+    result = model.n_similarity(test_stop,row_stop)
+    if result>0.3:
+        if max_sim < result:
+            max_sim = result
+        else:
+            max_sim = max_sim
+        print 'Data:'
+        print row
+        ##data = keywords(new_row,split=True)
+        ##print 'Keyword data:'
+        ##print data
+
+        ### 2. run on RAKE on a given text
+        ##data2 = rake_object.run(text)
+        ##print str(data2).split()
+
+        ##print model.vocab
+        ##print model.most_similar('rumah')
+        print "Similarity: "
+        print model.n_similarity(test_stop,row_stop)
+        
+print "Maximal: "
+print max_sim
+
+
 
 
 
