@@ -10,7 +10,6 @@ import gensim
 from gensim import utils
 from gensim.models.doc2vec import TaggedDocument
 from gensim.models import Doc2Vec
-##from gensim.summarization import keywords
 
 # random shuffle
 from random import shuffle
@@ -18,12 +17,10 @@ from random import shuffle
 # numpy
 import numpy
 
-# classifier
-# from sklearn.linear_model import LogisticRegression
 from nltk.corpus import stopwords
 
-##log = logging.getLogger()
-##log.setLevel(logging.DEBUG)
+log = logging.getLogger()
+log.setLevel(logging.DEBUG)
 
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
@@ -63,7 +60,7 @@ class TaggedLineSentence(object):
         return self.sentences
 
 # connect
-db = MySQLdb.connect(host="localhost", user="root", passwd="", db="buds")
+db = MySQLdb.connect(host="localhost", user="root", passwd="", db="media_buds")
 cursor = db.cursor()
 
 # pass variable from PHP
@@ -73,7 +70,7 @@ cursor = db.cursor()
 ##except:
 ##    print "ERROR"
 ##    sys.exit(1)
-grouppost_id = '12'
+grouppost_id = '14'
 
 raw = open("C:\Python27\word2vec\stopwords.txt", "rU")
 stop = raw.read()
@@ -91,8 +88,6 @@ new_test = " ".join(test_stop)
 
 with open("Test.txt", "w") as text_file:
     text_file.writelines(new_test)
- 
-##uji = keywords(new_test,split=True)
 
 # execute SQL select statement
 cursor.execute("SELECT posts FROM groupposts WHERE group_id='1' AND status='2' ")
@@ -123,22 +118,18 @@ train_sources = {'Output.txt':'TRAIN','Test.txt':'TEST'}
 
 ##log.info('TaggedDocument')
 sentences = TaggedLineSentence(train_sources)
-##test_sentences = TaggedLineSentence(test_sources)
 
 ##log.info('D2V')
-model = Doc2Vec(min_count=1, window=5, size=100, workers=3, alpha=0.025, sorted_vocab=1, iter=5, batch_words=5000)
+model = Doc2Vec(min_count=1, window=5, size=200, workers=3, alpha=0.025, iter=5)
 model.build_vocab(sentences)
 
-##log.info('Epoch')
-##for epoch in range(5):
-##    log.info('EPOCH: {}'.format(epoch))
 model.train(sentences)
 
 ##log.info('Model Save')
 model.save('./maclearn.d2v')
 model = Doc2Vec.load('./maclearn.d2v')
 
-##print model.vocab
+##print model.docvecs['TRAIN_2']
 
 def json_list(array1,array2,array3):
     arr = []
@@ -170,9 +161,9 @@ while row is not None:
     with open("Data.txt", "w") as text_file:
         text_file.writelines(new_row)
 
-    result = model.n_similarity(test_stop,row_stop)
-##    result = round(100*similar,2)
-    if result>=0.5:
+    similar = model.n_similarity(test_stop,row_stop)
+    result = round(100*similar,2)
+    if result>50:
         id_row.append(gpid_row)
         isi.append(post_row)        
         sims.append(result)
